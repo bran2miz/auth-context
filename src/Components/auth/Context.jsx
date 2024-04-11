@@ -1,6 +1,7 @@
 import React from 'react';
 import cookie from 'react-cookies';
 import jwt_decode from 'jwt-decode';
+import {useState, useEffect, useCallback} from 'react';
 
 const testUsers = {
   Administrator: {
@@ -27,73 +28,75 @@ const testUsers = {
 
 export const LoginContext = React.createContext();
 
-class LoginProvider extends React.Component {
+const LoginProvider =(props) => {
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      loggedIn: false,
-      can: this.can,
-      login: this.login,
-      logout: this.logout,
-      user: { capabilities: [] },
-      error: null,
-    };
+  const [state, setState] = useState({
+    loggedIn: false,
+    user: { capabilities: [] },
+    error: null,
+  });
+
+  const can = (capability) => {
+    return state?.user?.capabilities?.includes(capability);
   }
+  // has to be declared before it is called when using an arrow function. Does not get hoisted up when you call unlike making it a function validateToken() {}
+  const validateToken = useCallback((token) => {
+    try {
+      let validUser = jwt_decode(token);
+      setLoginState(true, token, validUser);
+    }
+    catch (e) {
+      setLoginState(false, null, {}, e);
+      console.log('Token Validation Error', e);
+    }
+  
+  },[]);
 
-  can = (capability) => {
-    return this?.state?.user?.capabilities?.includes(capability);
-  }
+  const setLoginState = (loggedIn, token, user, error) => {
+    cookie.save('auth', token);
+    setState({ token, loggedIn, user, error: error || null });
+  };
 
-  login = async (username, password) => {
-    let { loggedIn, token, user } = this.state;
+  const logout = () => {
+    setLoginState(false, null, {});
+  };
+
+  const login = async (username, password) => {
+    let { loggedIn, token, user } = state;
     let auth = testUsers[username];
-
+  
     if (auth && auth.password === password) {
       try {
-        this.validateToken(auth.token);
+        validateToken(auth.token);
       } catch (e) {
-        this.setLoginState(loggedIn, token, user, e);
+        setLoginState(loggedIn, token, user, e);
         console.error(e);
       }
     }
   }
 
-  logout = () => {
-    this.setLoginState(false, null, {});
-  };
-
-  validateToken = token => {
-    try {
-      let validUser = jwt_decode(token);
-      this.setLoginState(true, token, validUser);
-    }
-    catch (e) {
-      this.setLoginState(false, null, {}, e);
-      console.log('Token Validation Error', e);
-    }
-
-  };
-
-  setLoginState = (loggedIn, token, user, error) => {
-    cookie.save('auth', token);
-    this.setState({ token, loggedIn, user, error: error || null });
-  };
-
-  componentDidMount() {
+  useEffect(() =>{
+    // This useEffect will check if it has a username, do I have a query string that I can get a token from. 
+    if (state.user.name) return;
     const qs = new URLSearchParams(window.location.search);
     const cookieToken = cookie.load('auth');
     const token = qs.get('token') || cookieToken || null;
-    this.validateToken(token);
-  }
+    validateToken(token);
+  }, [state.user.name, validateToken]);
 
-  render() {
+  // componentDidMount() {
+  //   const qs = new URLSearchParams(window.location.search);
+  //   const cookieToken = cookie.load('auth');
+  //   const token = qs.get('token') || cookieToken || null;
+  //   this.validateToken(token);
+  // }
+
+
     return (
-      <LoginContext.Provider value={this.state}>
-        {this.props.children}
+      <LoginContext.Provider value={{...state, can: can, login:login, logout:logout }}>
+        {props.children}
       </LoginContext.Provider>
     );
-  }
 }
 
 export default LoginProvider;

@@ -1,50 +1,48 @@
-import React from 'react';
+// import React from 'react';
 import {When} from 'react-if';
-
+import { useContext, useState } from 'react';
 import { LoginContext } from './Context.jsx';
 
-class Login extends React.Component {
-  static contextType = LoginContext;
+const Login =  () => {
+  const context = useContext(LoginContext);
 
-  constructor(props) {
-    super(props);
-    this.state = { username: '', password: '' };
-  }
+  const [state, setState] = useState({ username: '', password: '' })
 
-  handleChange = e => {
-    this.setState({ [e.target.name]: e.target.value });
+  // use this so you don't erase either the username or password from state.
+  const handleChange = e => {
+    setState({...state, [e.target.name]: e.target.value });
   };
 
-  handleSubmit = e => {
+  const handleSubmit = e => {
     e.preventDefault();
-    this.context.login(this.state.username, this.state.password);
+    context.login(state.username, state.password);
   };
 
-  render() {
+
     return (
       <>
-        <When condition={this.context.loggedIn}>
-          <button onClick={this.context.logout}>Log Out</button>
+        <When condition={context.loggedIn}>
+          <button onClick={context.logout}>Log Out</button>
         </When>
 
-        <When condition={!this.context.loggedIn}>
-          <form onSubmit={this.handleSubmit}>
+        <When condition={!context.loggedIn}>
+          <form onSubmit={handleSubmit}>
             <input
               placeholder="UserName"
               name="username"
-              onChange={this.handleChange}
+              onChange={handleChange}
             />
             <input
               placeholder="password"
               name="password"
-              onChange={this.handleChange}
+              onChange={handleChange}
             />
             <button>Login</button>
           </form>
         </When>
       </>
     );
-  }
+
 }
 
 export default Login;
